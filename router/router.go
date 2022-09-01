@@ -13,7 +13,7 @@ var routes []model.Route
 
 func init() {
 	fmt.Println("Route Init")
-	register("GET", "/hello", controller.Hello, nil)
+	register("POST", "/hello", controller.Hello, nil)
 	fmt.Printf("%+v", routes)
 }
 

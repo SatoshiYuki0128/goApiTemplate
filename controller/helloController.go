@@ -3,14 +3,14 @@ package controller
 import (
 	"goApiFramework/model"
 	"goApiFramework/service/common"
-	"letinstall-api/models"
-	applistservice "letinstall-api/services/appList"
+	"goApiFramework/service/hello"
 	"net/http"
 )
 
+// Hello controllerCode:H1
 func Hello(w http.ResponseWriter, r *http.Request) {
 	flowData := model.FlowData{}
-	if service.GetAndValidateRequest[models.PostAppReq](r, &flowData, "AL1") {
-		applistservice.GetAppList(&flowData, "AL1")
+	if common.GetAndValidateRequest[model.HelloReq](r, &flowData, "H1") {
+		hello.Hello(&flowData, "H1")
 	}
 }
