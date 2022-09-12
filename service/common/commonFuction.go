@@ -1,7 +1,9 @@
-package common
+package commonService
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 	"goApiFramework/model"
 	"io/ioutil"
@@ -10,6 +12,12 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/go-playground/locales/en"
+	"github.com/go-playground/locales/zh"
+	ut "github.com/go-playground/universal-translator"
+	entrans "github.com/go-playground/validator/v10/translations/en"
+	zhtrans "github.com/go-playground/validator/v10/translations/zh"
 )
 
 func initFlowData(flowData *model.FlowData, controllerCode, serviceCode string) {
@@ -23,12 +31,12 @@ func getRequestBody(r *http.Request, flowData *model.FlowData, controllerCode, s
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		flowData.CtrlError = model.CtrlError{
-			ControlCode: controllerCode,
+			CtrlCode: controllerCode,
 			ServError: model.ServError{
-				ServerCode:   serviceCode,
-				FunctionCode: "00",
-				Msg:          "GetRequestBody Error",
-				Err:          err}}
+				ServCode: serviceCode,
+				FuncCode: "00",
+				Msg:      "GetRequestBody Error",
+				Err:      err}}
 	}
 	isOK = true
 	return
@@ -45,68 +53,79 @@ func checkModel[T any](data []byte, r *http.Request, flowData *model.FlowData, c
 
 	setUrlParamIntoRequest(mux.Vars(r), &request)
 
-	//validateRequest(flowData, request, controllerCode, "HH2")
+	validateRequest(flowData, request, controllerCode, "HH2")
 
 	flowData.Request = request
 
-	//flowData.Data["RequestIP"] = getRequestIP(r)
+	flowData.Data["RequestIP"] = getRequestIP(r)
 
 	return
 }
 
-//func validateRequest(flowData *model.FlowData, request interface{}, controllerCode, serviceCode string) {
-//	zhTranslator := zh.New()
-//	enTranslator := en.New()
-//	uni := ut.New(zhTranslator, zhTranslator, enTranslator)
-//	curLocales := "zh"                             // 设置当前语言类型
-//	translator, _ := uni.GetTranslator(curLocales) // 获取对应语言的转换器
-//	validate := validator.New()
-//	validate.RegisterValidation("m1gt0", isIdFieldMinusOneOrGreatThanZero)
-//
-//	switch curLocales {
-//	case "zh":
-//		// 内置tag注册 中文翻译器
-//		_ = zhtrans.RegisterDefaultTranslations(validate, translator)
-//
-//		// 自定义tag注册 中文翻译器
-//		_ = validate.RegisterTranslation("m1gt0", translator, func(ut ut.Translator) error {
-//			if err := ut.Add("m1gt0", "{0}必須等於-1或大於0", false); err != nil {
-//				return err
-//			}
-//
-//			return nil
-//		}, func(ut ut.Translator, fe validator.FieldError) string {
-//			t, err := ut.T(fe.Tag(), fe.Field())
-//			if err != nil {
-//				fmt.Printf("警告: 翻译字段错误: %#v", fe)
-//				return fe.(error).Error()
-//			}
-//
-//			return t
-//		})
-//	case "en":
-//		// 内置tag注册 英文翻译器
-//		_ = entrans.RegisterDefaultTranslations(validate, translator)
-//	}
-//
-//	err := validate.Struct(request)
-//	if err != nil {
-//		validateErrorMessage := ""
-//		errs := err.(validator.ValidationErrors)
-//		for _, e := range errs {
-//			validateErrorMessage += e.Translate(translator) + ";"
-//		}
-//		flowData.CtrlError = model.CtrlError{
-//			ControlCode: controllerCode,
-//			ServError: model.ServError{
-//				ServerCode:   serviceCode,
-//				FunctionCode: "HH7",
-//				Msg:          "Validate Error:" + validateErrorMessage,
-//				Err:          err}}
-//	}
-//
-//	return
-//}
+func validateRequest(flowData *model.FlowData, request interface{}, controllerCode, serviceCode string) {
+	zhTranslator := zh.New()
+	enTranslator := en.New()
+	uni := ut.New(zhTranslator, zhTranslator, enTranslator)
+	curLocales := "zh"                             // 设置当前语言类型
+	translator, _ := uni.GetTranslator(curLocales) // 获取对应语言的转换器
+	validate := validator.New()
+	validate.RegisterValidation("m1gt0", isIdFieldMinusOneOrGreatThanZero)
+
+	switch curLocales {
+	case "zh":
+		// 内置tag注册 中文翻译器
+		_ = zhtrans.RegisterDefaultTranslations(validate, translator)
+
+		// 自定义tag注册 中文翻译器
+		_ = validate.RegisterTranslation("m1gt0", translator, func(ut ut.Translator) error {
+			if err := ut.Add("m1gt0", "{0}必須等於-1或大於0", false); err != nil {
+				return err
+			}
+
+			return nil
+		}, func(ut ut.Translator, fe validator.FieldError) string {
+			t, err := ut.T(fe.Tag(), fe.Field())
+			if err != nil {
+				fmt.Printf("警告: 翻译字段错误: %#v", fe)
+				return fe.(error).Error()
+			}
+
+			return t
+		})
+	case "en":
+		// 内置tag注册 英文翻译器
+		_ = entrans.RegisterDefaultTranslations(validate, translator)
+	}
+
+	err := validate.Struct(request)
+	if err != nil {
+		validateErrorMessage := ""
+		errs := err.(validator.ValidationErrors)
+		for _, e := range errs {
+			validateErrorMessage += e.Translate(translator) + ";"
+		}
+		flowData.CtrlError = model.CtrlError{
+			CtrlCode: controllerCode,
+			ServError: model.ServError{
+				ServCode: serviceCode,
+				FuncCode: "HH7",
+				Msg:      "Validate Error:" + validateErrorMessage,
+				Err:      err}}
+	}
+
+	return
+}
+
+func isIdFieldMinusOneOrGreatThanZero(field validator.FieldLevel) (result bool) {
+	// 获取字段当前值 fl.Field()
+	value := field.Field().Int()
+	if value == -1 || value > 0 {
+		result = true
+	}
+	// 获取tag 对应的参数 fl.Param() ，针对unique_name标签 ，不需要参数
+	// 获取字段名称 fl.FieldName()
+	return false
+}
 
 func setUrlParamIntoRequest(urlParams map[string]string, request interface{}) {
 	for urlParam := range urlParams {
@@ -124,12 +143,12 @@ func requestJson2Obj(data []byte, flowData *model.FlowData, request interface{},
 	err := json.Unmarshal(data, &request)
 	if err != nil {
 		flowData.CtrlError = model.CtrlError{
-			ControlCode: controllerCode,
+			CtrlCode: controllerCode,
 			ServError: model.ServError{
-				ServerCode:   serviceCode,
-				FunctionCode: "HH3",
-				Msg:          "Json Unmarshal Error",
-				Err:          err}}
+				ServCode: serviceCode,
+				FuncCode: "HH3",
+				Msg:      "Json Unmarshal Error",
+				Err:      err}}
 	}
 
 	return
@@ -205,4 +224,25 @@ func nestReflectSetModel(reflectType reflect.Type, reflectValue reflect.Value, f
 		}
 	}
 
+}
+
+func getRequestIP(r *http.Request) string {
+	reqIP := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0])
+	if reqIP == "" {
+		reqIP = "111.235.135.58"
+	}
+	return reqIP
+}
+
+func JsonResponse(w http.ResponseWriter, flowData *model.FlowData) {
+
+	response := model.ExternalResponse{Data: flowData.Response}
+	response.ErrorCode = flowData.ErrorCode()
+	response.ErrorMessage = flowData.Msg
+	jsonByte, _ := json.Marshal(response)
+	if flowData.Err != nil {
+		fmt.Println(flowData.Err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonByte)
 }

@@ -1,7 +1,10 @@
-package hello
+package helloService
 
-import "goApiFramework/model"
+import (
+	"goApiFramework/model"
+)
 
+// Hello controllerCode:H1
 func Hello(flowData *model.FlowData, controllerCode string) {
-	flowData.Response = "Hello"
+	printHello(flowData, "H1")
 }

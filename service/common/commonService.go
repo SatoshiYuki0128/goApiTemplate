@@ -1,4 +1,4 @@
-package common
+package commonService
 
 import (
 	"goApiFramework/model"
@@ -18,4 +18,8 @@ func GetAndValidateRequest[T any](httpRequest *http.Request, flowData *model.Flo
 	}
 
 	return
+}
+
+func ServeResponse(w http.ResponseWriter, flowData *model.FlowData) {
+	JsonResponse(w, flowData)
 }
